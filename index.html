@@ -6,6 +6,98 @@
     <title>Squarefeed</title>
 </head>
 <body>
-    <iframe src="https://core.squarefeed.io" width="100%" id="squarefeed_iframe" height="783px" frameborder="0"></iframe>
+    <iframe src="https://core.squarefeed.io:8088" width="100%" id="squarefeed_iframe" height="783px" frameborder="0" onload="handleSquarefeedIframeLoaded(this)"></iframe>
+
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script>
+        var store_url = `{{store_url}}`;
+        var store_currency = `{{store_currency}}`;
+        var primary_locale = `{{primary_locale}}`;
+
+        var setCookie = function(name,value,days) {
+            var expires = "";
+            if (days) {
+                var date = new Date();
+                date.setTime(date.getTime() + (days*24*60*60*1000));
+                expires = "; expires=" + date.toUTCString();
+            }
+            document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+        }
+
+        var getCookie = function(name) {
+            var nameEQ = name + "=";
+            var ca = document.cookie.split(';');
+            for(var i=0;i < ca.length;i++) {
+                var c = ca[i];
+                while (c.charAt(0)==' ') c = c.substring(1,c.length);
+                if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+            }
+            return null;
+        }
+
+        
+        var currentEnv = getCookie('env');
+
+        var setIframeUrl = function(currentEnv="") {
+            console.log('setIframeUrl:start');
+            if(!currentEnv) {
+                var currentEnv = getCookie('env');
+            }
+            $('#squarefeed_iframe').attr('src', currentEnv === "production" ? "https://core.squarefeed.io/": "https://staging.squarefeed.io:8088/");
+        }
+
+        var checkCookie = function() {
+            var lastCookie = getCookie('env');
+            if(lastCookie != currentEnv) {
+                console.log('cookie changed');
+                currentEnv = lastCookie;
+                location.reload();
+                //setIframeUrl(currentEnv);
+            }
+        };
+
+        function handleSquarefeedIframeLoaded() {
+            console.log('handleSquarefeedIframeLoaded called');
+            var squarefeedIframe = document.getElementById("squarefeed_iframe").contentWindow;
+            squarefeedIframe.postMessage(
+                {
+                    "command": "setUser",
+                    "credentials": {
+                        "accessToken": "53846ucnmy0g08e3grw7awx7564mp415",
+                        "accessTokenSecret": "703t3s9h420l1ve8egempvsqwdhibk69",
+                        "consumerKey": "eoi62ni4llo6evbnlvc63rok81lmpxml",
+                        "consumerSecret": "ynvw4p9nopggwo96rhoyfywidbhanwpf"
+                    },
+                    "storeCurrency": store_currency,
+                    "storeLocale": primary_locale,
+                    "storeUrl": 'https://' + store_url,
+                    "apiUrl": "https://shopify.squarefeed.io/api/products/list/v2?shop=" + store_url,
+                    "version": "1.0",
+                    "platform": "shopify",
+                    "appVersion": "1.0"
+                },
+                "*"
+            );
+        }
+
+        window.addEventListener("message", receiveMessage, false);
+        function receiveMessage(response) {
+            console.log({response})
+            if(response.data) {
+                data = response.data;
+                if(data && data && data.command == "resize") {
+                    let height = data.height;
+                    $('#squarefeed_iframe').attr('height', height);
+                }
+                if(data && data.command === 'reload') {
+                    window.location.reload();
+                } 
+            }
+        }
+
+        setInterval(checkCookie, 500); // keep checking if the cookie changed
+
+    </script>
 </body>
 </html>
